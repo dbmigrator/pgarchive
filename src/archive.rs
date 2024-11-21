@@ -9,8 +9,19 @@ use std::fs::File;
 use std::io;
 use std::string::String;
 
-const MIN_SUPPORTED_VERSION: Version = (1, 10, 0);
-const MAX_SUPPORTED_VERSION: Version = (1, 15, 0);
+// Historical version numbers are described in `postgres/src/bin/pg_dump/pg_backup_archiver.h`
+
+/// add tablespace
+pub const K_VERS_1_10: Version = (1, 10, 0);
+
+/// add tableam
+pub const K_VERS_1_14: Version = (1, 14, 0);
+
+/// add compression_algorithm in header
+pub const K_VERS_1_15: Version = (1, 15, 0);
+
+/// BLOB METADATA entries and multiple BLOBS, relkind
+pub const K_VERS_1_16: Version = (1, 16, 0);
 
 /// An object providing access to a PostgreSQL archive
 ///
@@ -98,7 +109,7 @@ impl Archive {
             io_config.read_byte(f)?,
         );
 
-        if version < MIN_SUPPORTED_VERSION || version > MAX_SUPPORTED_VERSION {
+        if version < K_VERS_1_10 || version > K_VERS_1_16 {
             return Err(ArchiveError::UnsupportedVersionError(version));
         }
 
@@ -112,7 +123,7 @@ impl Archive {
             ));
         }
 
-        let compression_method = if version >= (1, 15, 0) {
+        let compression_method = if version >= K_VERS_1_15 {
             io_config
                 .read_byte(f)?
                 .try_into()
@@ -153,7 +164,7 @@ impl Archive {
         let database_name = io_config.read_string(f)?;
         let server_version = io_config.read_string(f)?;
         let pgdump_version = io_config.read_string(f)?;
-        let toc_entries = read_toc(f, &io_config)?;
+        let toc_entries = read_toc(f, &io_config, version)?;
 
         Ok(Archive {
             version,
